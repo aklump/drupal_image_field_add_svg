@@ -7,8 +7,6 @@
  * @{
  */
 
-use AKlump\LoftLib\Code\Arrays;
-
 /**
  * Implements hook_form_alter().
  */
@@ -56,23 +54,6 @@ function image_field_add_svg_theme_image_style($vars) {
   if ($ext !== 'svg') {
     return theme_image_style($vars);
   }
-  //
-  //  // Determine the dimensions of the styled image.
-  //  $dimensions = array(
-  //    'width' => $vars['width'],
-  //    'height' => $vars['height'],
-  //  );
-  //
-  //  image_style_transform_dimensions($vars['style_name'], $dimensions);
-  //
-  //  $vars['width'] = $dimensions['width'];
-  //  $vars['height'] = $dimensions['height'];
-  //
-  //  // Determine the URL for the styled image.
-  //  if ($ext !== 'svg') {
-  //    $vars['path'] = image_style_url($vars['style_name'], $vars['path']);
-  //  }
-  //  else {
   $style = image_style_load($vars['style_name']);
   foreach (element_children($style['effects']) as $delta) {
     switch ($style['effects'][$delta]['effect callback']) {
@@ -82,8 +63,6 @@ function image_field_add_svg_theme_image_style($vars) {
         break;
     }
   }
-
-  //  }
 
   return theme('image', $vars);
 }
@@ -106,8 +85,7 @@ function image_field_add_svg_module_implements_alter(&$implementations, $hook) {
  * @param string $search The key to insert after.
  * @param array  $insert The array to insert.
  */
-function _image_field_add_svg_insert_after_key(array &$array, $search, array $insert)
-{
+function _image_field_add_svg_insert_after_key(array &$array, $search, array $insert) {
   $offset = array_search($search, array_keys($array));
   $a = array_slice($array, 0, $offset + 1);
   $b = array_slice($array, $offset + 1);
@@ -135,34 +113,26 @@ function image_field_add_svg_field_attach_presave($entity_type, $entity) {
 
   $e = data_api($entity_type);
 
-  // TODO Get all image fields names and loop on them.
+  if (($image_fields = array_keys(field_read_fields(['type' => 'image'])))) {
+    $fields = array_filter($image_fields, function ($field_name) use ($entity) {
+      return property_exists($entity, $field_name) ? TRUE : FALSE;
+    });
+  }
 
-  if (!property_exists($entity, 'field_image')) {
+  if (empty($fields)) {
     return;
   }
 
-  $items = $e->get($entity, 'field_image', []);
-  foreach ($items as $delta => $item) {
-    if (empty($item['width']) && ($file = file_load($item['fid'])) && ($svg = simplexml_load_file($file->uri))) {
-      list(, , $width, $height) = explode(' ', $svg->attributes()->viewBox);
-      $item['width'] = ceil($width);
-      $item['height'] = ceil($height);
-      $e->set($entity, ['field_image', $delta], $item);
+  foreach ($fields as $field_name) {
+    $items = $e->get($entity, $field_name, []);
+    foreach ($items as $delta => $item) {
+      if (empty($item['width']) && ($file = file_load($item['fid'])) && ($svg = simplexml_load_file($file->uri))) {
+        list(, , $width, $height) = explode(' ', $svg->attributes()->viewBox);
+        $item['width'] = ceil($width);
+        $item['height'] = ceil($height);
+        $e->set($entity, [$field_name, $delta], $item);
+      }
     }
   }
 }
-
-//function _image_field_add_svg_field_storage_pre_insert($entity_type, $entity, $skip_fields) {
-//
-//  //
-//  //
-//  // This is necessary to get the width and height
-//  //
-//  if ($entity_type === 'file' && pathinfo($entity->filename, PATHINFO_EXTENSION) === 'svg') {
-//    $svg = simplexml_load_file($entity->uri);
-//    list(, , $width, $height) = explode(' ', $svg->attributes()->viewBox);
-//    $entity->metadata['width'] = ceil($width);
-//    $entity->metadata['height'] = ceil($height);
-//  }
-//}
 
