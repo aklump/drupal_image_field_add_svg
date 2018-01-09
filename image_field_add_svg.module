@@ -93,10 +93,25 @@ function image_field_add_svg_theme_image_style($vars) {
  */
 function image_field_add_svg_module_implements_alter(&$implementations, $hook) {
   if ($hook === 'file_presave') {
-    $insert = ['itls' => $implementations['itls']];
-    unset($implementations['itls']);
-    Arrays::insertAfterKey($implementations, 'file_entity', $insert);
+    $insert = ['image_field_add_svg' => $implementations['image_field_add_svg']];
+    unset($implementations['image_field_add_svg']);
+    _image_field_add_svg_insert_after_key($implementations, 'file_entity', $insert);
   }
+}
+
+/**
+ * Insert an associative array right after a key.
+ *
+ * @param array  $array
+ * @param string $search The key to insert after.
+ * @param array  $insert The array to insert.
+ */
+function _image_field_add_svg_insert_after_key(array &$array, $search, array $insert)
+{
+  $offset = array_search($search, array_keys($array));
+  $a = array_slice($array, 0, $offset + 1);
+  $b = array_slice($array, $offset + 1);
+  $array = array_merge($a, $insert, $b);
 }
 
 /**
