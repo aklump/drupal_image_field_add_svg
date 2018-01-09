@@ -1,0 +1,153 @@
+<?php
+/**
+ * @file
+ * Base file for the image_field_add_svg module.
+ *
+ * @defgroup image_field_add_svg Image Field Add Svg
+ * @{
+ */
+
+use AKlump\LoftLib\Code\Arrays;
+
+/**
+ * Implements hook_form_alter().
+ */
+function image_field_add_svg_field_widget_image_image_form_alter(&$elements, &$form_state, $context) {
+  foreach (element_children($elements) as $delta) {
+    $supported_extensions = array('png', 'gif', 'jpg', 'jpeg', 'svg');
+    $extensions = $context['instance']['settings']['file_extensions'];
+    $extensions = array_intersect(explode(' ', $extensions), $supported_extensions);
+    $elements[$delta]['#upload_validators']['file_validate_extensions'][0] = implode(' ', $extensions);
+  }
+
+  if ($context['field']['cardinality'] == 1) {
+    // If there's only one field, return it as delta 0.
+    if (empty($elements[0]['#default_value']['fid'])) {
+      $elements[0]['#description'] = theme('file_upload_help', array(
+        'description' => field_filter_xss($context['instance']['description']),
+        'upload_validators' => $elements[0]['#upload_validators'],
+      ));
+    }
+  }
+  else {
+    $elements['#file_upload_description'] = theme('file_upload_help', array('upload_validators' => $elements[0]['#upload_validators']));
+  }
+}
+
+/**
+ * Modify theme so svgs don't get sent to image style paths.
+ *
+ * @param $theme_registry
+ */
+function image_field_add_svg_theme_registry_alter(&$theme_registry) {
+  $theme_registry['image_style']['function'] = 'image_field_add_svg_theme_image_style';
+}
+
+/**
+ * @param $vars
+ *
+ * @return string
+ * @throws \Exception
+ *
+ * @see theme_image_style
+ */
+function image_field_add_svg_theme_image_style($vars) {
+  $ext = pathinfo($vars['path'], PATHINFO_EXTENSION);
+  if ($ext !== 'svg') {
+    return theme_image_style($vars);
+  }
+  //
+  //  // Determine the dimensions of the styled image.
+  //  $dimensions = array(
+  //    'width' => $vars['width'],
+  //    'height' => $vars['height'],
+  //  );
+  //
+  //  image_style_transform_dimensions($vars['style_name'], $dimensions);
+  //
+  //  $vars['width'] = $dimensions['width'];
+  //  $vars['height'] = $dimensions['height'];
+  //
+  //  // Determine the URL for the styled image.
+  //  if ($ext !== 'svg') {
+  //    $vars['path'] = image_style_url($vars['style_name'], $vars['path']);
+  //  }
+  //  else {
+  $style = image_style_load($vars['style_name']);
+  foreach (element_children($style['effects']) as $delta) {
+    switch ($style['effects'][$delta]['effect callback']) {
+      case 'image_scale_effect':
+        $vars['width'] = $style['effects'][$delta]['data']['width'];
+        $vars['height'] = $style['effects'][$delta]['data']['height'];
+        break;
+    }
+  }
+
+  //  }
+
+  return theme('image', $vars);
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+function image_field_add_svg_module_implements_alter(&$implementations, $hook) {
+  if ($hook === 'file_presave') {
+    $insert = ['itls' => $implementations['itls']];
+    unset($implementations['itls']);
+    Arrays::insertAfterKey($implementations, 'file_entity', $insert);
+  }
+}
+
+/**
+ * Implements hook_file_update().
+ *
+ * Must run after file_entity presave
+ */
+function image_field_add_svg_file_presave($file) {
+  if (pathinfo($file->filename, PATHINFO_EXTENSION) === 'svg' && is_null($file->metadata['width'])) {
+    $svg = simplexml_load_file($file->uri);
+    list(, , $width, $height) = explode(' ', $svg->attributes()->viewBox);
+    $file->metadata['width'] = ceil($width);
+    $file->metadata['height'] = ceil($height);
+  }
+}
+
+/**
+ * Implements hook_field_attach_presave().
+ */
+function image_field_add_svg_field_attach_presave($entity_type, $entity) {
+
+  $e = data_api($entity_type);
+
+  // TODO Get all image fields names and loop on them.
+
+  if (!property_exists($entity, 'field_image')) {
+    return;
+  }
+
+  $items = $e->get($entity, 'field_image', []);
+  foreach ($items as $delta => $item) {
+    if (empty($item['width']) && ($file = file_load($item['fid'])) && ($svg = simplexml_load_file($file->uri))) {
+      list(, , $width, $height) = explode(' ', $svg->attributes()->viewBox);
+      $item['width'] = ceil($width);
+      $item['height'] = ceil($height);
+      $e->set($entity, ['field_image', $delta], $item);
+    }
+  }
+}
+
+//function _image_field_add_svg_field_storage_pre_insert($entity_type, $entity, $skip_fields) {
+//
+//  //
+//  //
+//  // This is necessary to get the width and height
+//  //
+//  if ($entity_type === 'file' && pathinfo($entity->filename, PATHINFO_EXTENSION) === 'svg') {
+//    $svg = simplexml_load_file($entity->uri);
+//    list(, , $width, $height) = explode(' ', $svg->attributes()->viewBox);
+//    $entity->metadata['width'] = ceil($width);
+//    $entity->metadata['height'] = ceil($height);
+//  }
+//}
+
