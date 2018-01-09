@@ -1,12 +1,11 @@
 name = Image Field Add SVG
 description = Adds support for SVG files to the core image field module.
 package = Core
-version = 7.x-1.0-rc2
+version = 7.x-1.0-rc3
 core = 7.x
 author = aklump
-
-dependencies[] = "image"
-dependencies[] = "loft_lib"
+dependencies[] = image
+dependencies[] = loft_lib
 
 homepage = https://github.com/aklump/drupal_image_field_add_svg
 
