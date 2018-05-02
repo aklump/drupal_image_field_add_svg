@@ -95,10 +95,10 @@ function _image_field_add_svg_insert_after_key(array &$array, $search, array $in
 /**
  * Implements hook_file_update().
  *
- * Must run after file_entity presave
+ * Must run after file_entity presave.
  */
 function image_field_add_svg_file_presave($file) {
-  if (pathinfo($file->filename, PATHINFO_EXTENSION) === 'svg' && is_null($file->metadata['width'])) {
+  if (pathinfo($file->filename, PATHINFO_EXTENSION) === 'svg' && (!isset($file->metadata) || is_null($file->metadata['width']))) {
     $svg = simplexml_load_file($file->uri);
     list(, , $width, $height) = explode(' ', $svg->attributes()->viewBox);
     $file->metadata['width'] = ceil($width);
