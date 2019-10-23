@@ -1,7 +1,7 @@
 name = Image Field Add SVG
 description = Adds support for SVG files to the core image field module.
 package = Core
-version = 7.x-1.0-rc7
+version = 7.x-1.0-rc8
 core = 7.x
 author = aklump
 dependencies[] = image
